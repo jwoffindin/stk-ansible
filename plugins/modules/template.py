@@ -8,6 +8,7 @@ This module allows processing of STK-style CloudFormation templates as an Ansibl
 from __future__ import absolute_import, division, print_function
 
 import os
+from typing import Dict
 import yaml
 
 from ansible.module_utils.basic import AnsibleModule
@@ -83,8 +84,9 @@ error:
 class MinimalConfig:
     """Minimal config object required for template helpers (e.g. for uploading lambdas)"""
 
-    def __init__(self, aws: AwsSettings):
+    def __init__(self, aws: AwsSettings, tags: Dict):
         self.aws = aws
+        self.tags = tags
 
 
 def run_module():
@@ -96,6 +98,7 @@ def run_module():
         vars=dict(type="dict", required=False),
         vars_file=dict(type="str", required=False),
         aws=dict(type="dict", required=False),
+        tags=dict(type="dict", required=False),
     )
 
     # seed the result dict in the object
@@ -167,13 +170,20 @@ def get_template_vars(module):
 
 
 def get_config(module):
-    """Load config; mostly we're after aws settings which are optionally loaded from module parameter 'aws'"""
+    """
+    Load config; mostly we're after aws settings which are optionally loaded from module parameter 'aws'
+    """
     if "aws" in module.params and module.params["aws"]:
         aws_settings = AwsSettings(**module.params["aws"])
     else:
         aws_settings = AwsSettings(region="Not specified", cfn_bucket="Not specified")
 
-    return MinimalConfig(aws=aws_settings)
+    if "tags" in module.params and module.params["tags"]:
+        tags = module.params["tags"]
+    else:
+        tags = {}
+
+    return MinimalConfig(aws=aws_settings, tags=tags)
 
 
 def set_deploy_info(template_source, provider, template_vars):
