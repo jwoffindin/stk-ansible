@@ -84,9 +84,10 @@ error:
 class MinimalConfig:
     """Minimal config object required for template helpers (e.g. for uploading lambdas)"""
 
-    def __init__(self, aws: AwsSettings, tags: Dict):
+    def __init__(self, aws: AwsSettings, tags: Dict, template_vars: Dict):
         self.aws = aws
         self.tags = tags
+        self.vars = template_vars
 
 
 def run_module():
@@ -126,7 +127,7 @@ def run_module():
     set_deploy_info(template_source, provider, template_vars)
 
     # Load the template, passing standard and custom helpers
-    config = get_config(module)
+    config = get_config(module, template_vars)
     tpl = build_template(module, provider, config)
 
     if action == "render":
@@ -169,7 +170,7 @@ def get_template_vars(module):
     return template_vars
 
 
-def get_config(module):
+def get_config(module, template_vars):
     """
     Load config; mostly we're after aws settings which are optionally loaded from module parameter 'aws'
     """
@@ -183,7 +184,7 @@ def get_config(module):
     else:
         tags = {}
 
-    return MinimalConfig(aws=aws_settings, tags=tags)
+    return MinimalConfig(aws=aws_settings, tags=tags, template_vars=template_vars)
 
 
 def set_deploy_info(template_source, provider, template_vars):
