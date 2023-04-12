@@ -1,0 +1,4 @@
+include galaxy.yml
+include README.md
+recursive-include plugins *
+recursive-include roles *
