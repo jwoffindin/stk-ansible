@@ -8,14 +8,16 @@ This module allows processing of STK-style CloudFormation templates as an Ansibl
 from __future__ import absolute_import, division, print_function
 
 import os
+import re
 from typing import Dict
 import yaml
 
 from ansible.module_utils.basic import AnsibleModule
-from stk.template import Template
+from stk.template import Template, RenderedTemplate
 from stk.template_helpers import TemplateHelpers
 from stk.aws_config import AwsSettings
 from stk.config import Config
+from stk.stack import Stack
 from stk.template_source import TemplateSource
 
 __metaclass__ = type  # pylint: disable=invalid-name
@@ -73,6 +75,10 @@ content:
     type: str
     returned: always
     sample: '....'
+diff:
+    description: Diff of rendered template vs currently deployed stack
+    type: str
+    returned: sometimes
 error:
     description: Error message if any error occurred
     type: str
@@ -100,6 +106,7 @@ def run_module():
         vars_file=dict(type="str", required=False),
         aws=dict(type="dict", required=False),
         tags=dict(type="dict", required=False),
+        helpers=dict(type="list", required=False, default=[]),
     )
 
     # seed the result dict in the object
@@ -139,10 +146,24 @@ def run_module():
             return module.fail_json(msg="Error rendering template", **result)
 
         result["capabilities"] = rendered.iam_capabilities()
+
+        result["diff"] = template_diff(config, rendered)
+
         return module.exit_json(**result)
     else:
         result["error"] = f"Unknown action {action}"
         module.fail_json(msg=f"Unknown action {action}", **result)
+
+
+def template_diff(config: MinimalConfig, rendered: RenderedTemplate):
+    """return diff of rendered template vs currently deployed stack"""
+    stack = Stack(aws=config.aws, name=config.vars["stack_name"])
+    if stack.exists():
+        diff = stack.diff(rendered)
+        # remove occurrences of '[.*]' from diff string (color codes)
+        diff = re.sub(r"\[[^]]+\]", "", diff)
+        return diff
+    return ""
 
 
 def build_template(module, provider, config):
@@ -150,7 +171,7 @@ def build_template(module, provider, config):
     template_helpers = TemplateHelpers(
         provider=provider,
         bucket=config.aws.cfn_bucket,
-        custom_helpers=[],
+        custom_helpers=module.params["helpers"],
         config=config,
     )
     tpl = Template(name=module.params["template"], provider=provider, helpers=template_helpers)
@@ -161,7 +182,7 @@ def build_template(module, provider, config):
 def get_template_vars(module):
     """Load template vars from file and/or module parameter 'vars'"""
     template_vars = {}
-    if "vars_file" in module.params:
+    if "vars_file" in module.params and module.params["vars_file"]:
         with open(module.params["vars_file"], "r", encoding="utf-8") as f:
             template_vars = yaml.load(f, Loader=yaml.FullLoader)
 

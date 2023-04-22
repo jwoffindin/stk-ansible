@@ -1,10 +1,10 @@
 namespace: stk
 name: cloudformation
-version: 1.0.0
+version: 1.0.1
 readme: README.md
 authors:
 - John Woffindin <j.woffindin@gmail.com>
-description: A collection of AWS CloudFormation modules using stk
+description: A collection of AWS CloudFormation modules using cfk-stk as a backend
 license:
   - MIT
 tags: [aws, cloudformation, stk]
